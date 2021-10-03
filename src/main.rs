@@ -1,73 +1,24 @@
-use std::{collections::HashMap, env, fmt::Display, fs::File, path::Path, process::exit};
+use std::{env, fs::File, path::Path, process::exit};
+
+use bmc_cpap::{get_data_filenames, parse_data};
 
 
-use glob::{GlobError, glob};
-use std::path::PathBuf;
-const PACKET_SIZE:usize = 256;
-
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-enum PacketFieldNames {
-    Reslex,
-    Ipap,
-    Epap,
-    TidalVol,
-    RepRate,
-}
-
-struct Packet {
-    data: Vec<u8>
-}
-
-// impl Packet {
-//     fn new() {
-//         to_do();
-//     }
-// }
 
 
-fn initialise_table() -> HashMap<PacketFieldNames, usize> {
-    
-    let mut map:  HashMap<PacketFieldNames, usize> = HashMap::new();
-    map.insert(PacketFieldNames::Reslex, 1);
-    map.insert(PacketFieldNames::Ipap, 2);
-    map.insert(PacketFieldNames::Epap, 3);
-    map.insert(PacketFieldNames::TidalVol, 99);
-    map.insert(PacketFieldNames::RepRate, 104);
-    map
 
-}
 
-fn get_data_filenames(data_directory: &str) -> Result<Vec<PathBuf>, GlobError> {
 
-    let mut file_list: Vec<PathBuf> = vec![];
-    let expanded_path = shellexpand::tilde(data_directory);
-    let pattern : PathBuf = [&expanded_path, "*.[0-9][0-9][0-9]"].iter().collect();
-    let mut err: Option<GlobError> = None;
 
-    for entry in glob(pattern.to_str().unwrap()).expect("Failed to read glob pattern") {
-        match entry {
-            Ok(path) => {file_list.push(path)},
-            
-            Err(e) => {err = Some(e);
-                                break;},
-        };
-    }
-    match err {
-        Some(e) => Err(e),
-        None => {
-            file_list.sort_unstable();
-            Ok(file_list)
-        }
-    }
-
-}
 
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let mut data_directory: &str= "";
-    let mut output_file: &str= "";
-    let mut packet = &[0_u8;PACKET_SIZE];
+    let mut data_directory: String= "".to_string();
+    let mut output_file_name: String= "./".to_string();
+ 
+
+
+
 
     if args.len() < 4 {
         println!("A min of two arguments are needed, -p '/path/to/data/' and the 'output_file.csv'.");
@@ -75,18 +26,30 @@ fn main() {
     }
 
     if args[1] == "-p" {
-        data_directory = &args[2];
-        if Path::new(data_directory).exists() {
+        data_directory = args[2].to_string();
+        if Path::new(&data_directory).exists() {
             colour::magenta_ln!("'{}' exists, continuing...",data_directory);
         }
         else {
             panic!("Path '{}' does not exist!!!",data_directory);
         }
     }
-    output_file = &args[3];
-    colour::green_ln!("Output file = '{}'",output_file);
+    output_file_name.to_string(); 
+    output_file_name.push_str(&args[3].to_string());
+    let opt_out_file = if Path::new(&output_file_name).exists() {
+        colour::magenta_ln!("'{}' exists, continuing...",output_file_name);
+        Some(File::create(output_file_name).unwrap())
+    }
+    else {
+        panic!("File '{}' does not exist!!!",output_file_name);
+    };
+    // colour::green_ln!("Output file = '{}'",output_file_name);
 
-    let file_list = get_data_filenames(data_directory).unwrap();
+    let out_file = opt_out_file.unwrap();
+
+    let file_list = get_data_filenames(&data_directory).unwrap();
+    // let output_file = Path::new(&output_file_name);
+    parse_data(&file_list[0], &out_file);
     
     for file_path in file_list {
         colour::blue_ln!("{:?}",file_path.to_str());
@@ -95,6 +58,7 @@ fn main() {
         colour::yellow_ln!("Size = {}",metadata.unwrap().len());
     }
 
+    
 
  
 }
