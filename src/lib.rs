@@ -63,7 +63,6 @@ fn init_vec_lookup() -> ( Vec<usize>, Vec<usize>, Vec<String>, Vec<usize>) {
     }
 
     let (hm_locn, hm_size) = initialise_table() ;
-    let num_bytes = 0;
     let mut locn:Vec<usize> = vec![];
     let mut size:Vec<usize> = vec![];
     for field in name_vec.iter(){
@@ -73,21 +72,11 @@ fn init_vec_lookup() -> ( Vec<usize>, Vec<usize>, Vec<String>, Vec<usize>) {
     (locn, size, string_vec, ymdhms_locations)
 }
 
-struct Packet {
-    data: Vec<u8>
-}
-
-// impl Packet {
-//     fn new() {
-//         to_do();
-//     }
-// }
-
 
 fn initialise_table() -> (HashMap<Field, usize>, HashMap<Field, usize>) {
     
     let mut map:  HashMap<Field, usize> = HashMap::new();
-    map.insert(Field::Reslex, 1*2);
+    map.insert(Field::Reslex, 2);
     map.insert(Field::Ipap, 2*2);
     map.insert(Field::Epap, 3*2);
     map.insert(Field::TidalVol, 99*2);
@@ -116,7 +105,7 @@ fn initialise_table() -> (HashMap<Field, usize>, HashMap<Field, usize>) {
 
 }
 
-fn wanted_csv_headers(headers:&Vec<String>) -> Vec<u8> {
+fn wanted_csv_headers(headers:&[String]) -> Vec<u8> {
 
     let mut csv_str: String = "".to_string();
     for s in headers.iter() {
@@ -134,9 +123,7 @@ fn wanted_csv_headers(headers:&Vec<String>) -> Vec<u8> {
 }
 
 
-
-
-fn wanted_csv_data(packet: &[u8], locn: &Vec<usize>, size:&Vec<usize>, ymdhms_locations: &Vec<usize>) -> Vec<u8> {
+fn wanted_csv_data(packet: &[u8], locn: &[usize], size:&[usize], ymdhms_locations: &[usize]) -> Vec<u8> {
     
     let mut ymdhms_values: Vec<i32> = vec![0;ymdhms_locations.len()];
     let mut csv_str: String = "".to_string();
@@ -191,9 +178,8 @@ pub fn get_data_filenames(data_path: &Path) -> Result<Vec<PathBuf>, GlobError> {
 
 
 
-pub fn parse_data(file_names: &Vec<PathBuf>, output_file_name: &File) {
+pub fn parse_data(file_names: &[PathBuf], output_file_name: &File) {
 
-    
     let out_file = output_file_name;//File::open(output_file_name);
     
     
@@ -204,7 +190,6 @@ pub fn parse_data(file_names: &Vec<PathBuf>, output_file_name: &File) {
     let mut number_of_lines = 0;
     let mut number_of_written_lines = 0;
 
-    let mut day: Option<usize> = None;
 
     let mut output_csv_bytes : Vec<u8> = vec![];
     let mut csv_line_bytes : Vec<u8>;
@@ -227,7 +212,6 @@ pub fn parse_data(file_names: &Vec<PathBuf>, output_file_name: &File) {
             length = buffer.len();
 
             if length == PACKET_SIZE {
-                // wanted_csv_data(packet: &Vec<u8>, locn: &Vec<usize>, size:&Vec<usize>, total_bytes: usize) -> Vec<u8> 
                 csv_line_bytes = wanted_csv_data(buffer, &locn, &size, &ymdhms_locations);
                 output_csv_bytes.append(& mut csv_line_bytes);
                 number_of_lines += 1;

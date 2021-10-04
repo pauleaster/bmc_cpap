@@ -3,15 +3,8 @@ use std::{env, fs::File, path::Path, process::exit, time::Instant};
 use bmc_cpap::{get_data_filenames, parse_data};
 
 
-
-
-
-
-
-
-
-
 fn main() {
+
 
     let now = Instant::now();
     let args: Vec<String> = env::args().collect();
@@ -20,9 +13,6 @@ fn main() {
     let mut opt_data_path: Option<&Path> = None;
     let expanded_path: String;
  
-
-
-
 
     if args.len() < 4 {
         println!("A min of two arguments are needed, -p '/path/to/data/' and the 'output_file.csv'.");
