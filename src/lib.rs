@@ -1,4 +1,5 @@
 
+use chrono::{Datelike, NaiveDate};
 use glob::glob;
 use std::{collections::HashMap, io::{BufWriter, Write}, path::Path};
 use glob::GlobError;
@@ -25,7 +26,7 @@ enum Field {
 
 
 
-fn init_vec_lookup() -> ( Vec<usize>, Vec<usize>, Vec<String>) {
+fn init_vec_lookup() -> ( Vec<usize>, Vec<usize>, Vec<String>, Vec<usize>) {
 
     let name_vec:Vec<Field> = vec![Field::Reslex,
     Field::Ipap,
@@ -50,6 +51,14 @@ fn init_vec_lookup() -> ( Vec<usize>, Vec<usize>, Vec<String>) {
     "Minute".to_string(),
     "Second".to_string()];
 
+    let ymdhms_headers= vec!["Year".to_string(),"Month".to_string(),"Day".to_string(),
+                                        "Hour".to_string(),"Minute".to_string(),"Second".to_string()];
+
+    let mut ymdhms_locations:Vec<usize> = vec![];
+    for ymdhms_val in ymdhms_headers {
+        ymdhms_locations.push(string_vec.iter().position(|r| r==&ymdhms_val).unwrap());
+    }
+
     let (hm_locn, hm_size) = initialise_table() ;
     let num_bytes = 0;
     let mut locn:Vec<usize> = vec![];
@@ -58,7 +67,7 @@ fn init_vec_lookup() -> ( Vec<usize>, Vec<usize>, Vec<String>) {
         locn.push(hm_locn[field]);
         size.push(hm_size[field]);
     }
-    (locn, size, string_vec)
+    (locn, size, string_vec, ymdhms_locations)
 }
 
 struct Packet {
@@ -113,26 +122,42 @@ fn wanted_csv_headers(headers:&Vec<String>) -> Vec<u8> {
     }
     csv_str.pop(); // remove the last ','
     csv_str.push('\n'); // add linefeed
-    csv_str.as_bytes().to_vec()
+    let mut prefix = "ordinal_seconds".to_string();
+    prefix.push(',');
+    prefix.push_str(&csv_str);
+    prefix.as_bytes().to_vec()
+
 
 }
 
 
-fn wanted_csv_data(packet: &[u8], locn: &Vec<usize>, size:&Vec<usize>) -> Vec<u8> {
+
+
+fn wanted_csv_data(packet: &[u8], locn: &Vec<usize>, size:&Vec<usize>, ymdhms_locations: &Vec<usize>) -> Vec<u8> {
     
+    let mut ymdhms_values: Vec<i32> = vec![0;ymdhms_locations.len()];
     let mut csv_str: String = "".to_string();
-    for (&loc, &s) in locn.iter().zip(size.iter()) {
+    for (idx,(&loc, &s)) in locn.iter().zip(size.iter()).enumerate() {
         let mut val:u16 = 0;
         for i in 0..s {
             let shift = i<<3;
             val |= (packet[loc + i] as u16) << shift;
         }
         csv_str.push_str(&val.to_string());
-        csv_str.push(',')
+        csv_str.push(',');
+        if let Some(ymdhms_index) = ymdhms_locations.iter().position(|&x| x==idx) {
+            ymdhms_values[ymdhms_index] = val as i32;
+        }
     }
     csv_str.pop(); // remove the last ','
     csv_str.push('\n'); // add linefeed
-    csv_str.as_bytes().to_vec()
+    let num_days = NaiveDate::from_ymd(ymdhms_values[0],ymdhms_values[1] as u32,ymdhms_values[2] as u32).num_days_from_ce();
+    let ordinal_seconds = num_days * 86_400 + ymdhms_values[3] * 3_600 + ymdhms_values[4] * 60 + ymdhms_values[5];
+    let mut prefix = ordinal_seconds.to_string();
+    prefix.push(',');
+    prefix.push_str(&csv_str);
+
+    prefix.as_bytes().to_vec()
 
 }
 
@@ -181,7 +206,7 @@ pub fn parse_data(file_names: &Vec<PathBuf>, output_file_name: &File) {
     let mut output_csv_bytes : Vec<u8> = vec![];
     let mut csv_line_bytes : Vec<u8>;
     
-    let (locn, size, headers) = init_vec_lookup();
+    let (locn, size, headers, ymdhms_locations) = init_vec_lookup();
 
 
 
@@ -200,7 +225,7 @@ pub fn parse_data(file_names: &Vec<PathBuf>, output_file_name: &File) {
 
             if length == PACKET_SIZE {
                 // wanted_csv_data(packet: &Vec<u8>, locn: &Vec<usize>, size:&Vec<usize>, total_bytes: usize) -> Vec<u8> 
-                csv_line_bytes = wanted_csv_data(buffer, &locn, &size);
+                csv_line_bytes = wanted_csv_data(buffer, &locn, &size, &ymdhms_locations);
                 output_csv_bytes.append(& mut csv_line_bytes);
                 number_of_lines += 1;
             }
