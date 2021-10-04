@@ -25,7 +25,7 @@ enum Field {
 
 
 
-fn init_vec_lookup() -> (Vec<Field>, Vec<usize>, Vec<usize>, Vec<String>) {
+fn init_vec_lookup() -> ( Vec<usize>, Vec<usize>, Vec<String>) {
 
     let name_vec:Vec<Field> = vec![Field::Reslex,
     Field::Ipap,
@@ -56,9 +56,9 @@ fn init_vec_lookup() -> (Vec<Field>, Vec<usize>, Vec<usize>, Vec<String>) {
     let mut size:Vec<usize> = vec![];
     for field in name_vec.iter(){
         locn.push(hm_locn[field]);
-        locn.push(hm_size[field]);
+        size.push(hm_size[field]);
     }
-    (name_vec, locn, size, string_vec)
+    (locn, size, string_vec)
 }
 
 struct Packet {
@@ -124,7 +124,8 @@ fn wanted_csv_data(packet: &[u8], locn: &Vec<usize>, size:&Vec<usize>) -> Vec<u8
     for (&loc, &s) in locn.iter().zip(size.iter()) {
         let mut val:u16 = 0;
         for i in 0..s {
-            val = (val << 8) | (packet[loc + i] as u16);
+            let shift = i<<3;
+            val |= (packet[loc + i] as u16) << shift;
         }
         csv_str.push_str(&val.to_string());
         csv_str.push(',')
@@ -136,11 +137,10 @@ fn wanted_csv_data(packet: &[u8], locn: &Vec<usize>, size:&Vec<usize>) -> Vec<u8
 }
 
 
-pub fn get_data_filenames(data_directory: &str) -> Result<Vec<PathBuf>, GlobError> {
+pub fn get_data_filenames(data_path: &Path) -> Result<Vec<PathBuf>, GlobError> {
 
     let mut file_list: Vec<PathBuf> = vec![];
-    let expanded_path = shellexpand::tilde(data_directory);
-    let pattern : PathBuf = [&expanded_path, "*.[0-9][0-9][0-9]"].iter().collect();
+    let pattern : PathBuf = data_path.join( "*.[0-9][0-9][0-9]").iter().collect();
     let mut err: Option<GlobError> = None;
     
 
@@ -163,13 +163,13 @@ pub fn get_data_filenames(data_directory: &str) -> Result<Vec<PathBuf>, GlobErro
 
 
 
-pub fn parse_data(file_name: &PathBuf, output_file_name: &File) {
+pub fn parse_data(file_names: &Vec<PathBuf>, output_file_name: &File) {
 
-    let file = File::open(file_name);
+    
     let out_file = output_file_name;//File::open(output_file_name);
     
-    let mut length = 1;
-    let mut reader = BufReader::with_capacity(PACKET_SIZE,file.unwrap());
+    
+    
     let mut writer = BufWriter::new(out_file);
     let mut total_bytes_read = 0;
     // let lookup_table = initialise_array_lookup();
@@ -181,40 +181,48 @@ pub fn parse_data(file_name: &PathBuf, output_file_name: &File) {
     let mut output_csv_bytes : Vec<u8> = vec![];
     let mut csv_line_bytes : Vec<u8>;
     
-    let (params, locn, size, headers) = init_vec_lookup();
+    let (locn, size, headers) = init_vec_lookup();
 
 
 
     csv_line_bytes = wanted_csv_headers(&headers);
     output_csv_bytes.append(& mut csv_line_bytes);
     number_of_lines += 1;
-    while  length > 0 {
-        let buffer: &[u8] = reader.fill_buf().unwrap();
-        length = buffer.len();
 
-        if length == PACKET_SIZE {
-            // wanted_csv_data(packet: &Vec<u8>, locn: &Vec<usize>, size:&Vec<usize>, total_bytes: usize) -> Vec<u8> 
-            csv_line_bytes = wanted_csv_data(buffer, &locn, &size);
-            output_csv_bytes.append(& mut csv_line_bytes);
-            number_of_lines += 1;
-        }
-        reader.consume(length);
-        total_bytes_read += length;
-        if number_of_lines >= NUMBER_OF_CSV_LINES_TO_WRITE {
-            match writer.write_all(&output_csv_bytes) {
-                Ok(()) => {
-                    output_csv_bytes = vec![];
-                    number_of_written_lines += number_of_lines;
-                    number_of_lines = 0;
-                    colour::green_ln!("Bytes read: {}, Lines written: {}", total_bytes_read, number_of_written_lines);
-                },
-                Err(e) => {
-                    panic!("{}",&e);
-                },
+    for file_name in file_names {
+        let file = File::open(file_name);
+        let mut reader = BufReader::with_capacity(PACKET_SIZE,file.unwrap());
+        colour::green_ln!("Reading {}", file_name.to_str().unwrap());
+        let mut length = 1;
+        while  length > 0 {
+            let buffer: &[u8] = reader.fill_buf().unwrap();
+            length = buffer.len();
+
+            if length == PACKET_SIZE {
+                // wanted_csv_data(packet: &Vec<u8>, locn: &Vec<usize>, size:&Vec<usize>, total_bytes: usize) -> Vec<u8> 
+                csv_line_bytes = wanted_csv_data(buffer, &locn, &size);
+                output_csv_bytes.append(& mut csv_line_bytes);
+                number_of_lines += 1;
             }
+            reader.consume(length);
+            total_bytes_read += length;
+            if number_of_lines >= NUMBER_OF_CSV_LINES_TO_WRITE {
+                match writer.write_all(&output_csv_bytes) {
+                    Ok(()) => {
+                        output_csv_bytes = vec![];
+                        number_of_written_lines += number_of_lines;
+                        number_of_lines = 0;
+                        // colour::green_ln!("Bytes read: {}, Lines written: {}", total_bytes_read, number_of_written_lines);
+                    },
+                    Err(e) => {
+                        panic!("{}",&e);
+                    },
+                }
 
+            }
         }
     }
     colour::magenta_ln!("Number of bytes read = {}",total_bytes_read);
+    colour::yellow_ln!("Number of lines written = {}",number_of_written_lines);
 
 }

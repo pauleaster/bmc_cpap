@@ -13,8 +13,10 @@ use bmc_cpap::{get_data_filenames, parse_data};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let mut data_directory: String= "".to_string();
+    let data_directory: String;
     let mut output_file_name: String= "./".to_string();
+    let mut opt_data_path: Option<&Path> = None;
+    let expanded_path: String;
  
 
 
@@ -27,7 +29,10 @@ fn main() {
 
     if args[1] == "-p" {
         data_directory = args[2].to_string();
-        if Path::new(&data_directory).exists() {
+        expanded_path = shellexpand::tilde(&data_directory).to_string();
+        opt_data_path = Some(Path::new(&expanded_path));
+        
+        if opt_data_path.unwrap().exists() {
             colour::magenta_ln!("'{}' exists, continuing...",data_directory);
         }
         else {
@@ -36,27 +41,29 @@ fn main() {
     }
     output_file_name.to_string(); 
     output_file_name.push_str(&args[3].to_string());
-    let opt_out_file = if Path::new(&output_file_name).exists() {
-        colour::magenta_ln!("'{}' exists, continuing...",output_file_name);
-        Some(File::create(output_file_name).unwrap())
-    }
-    else {
-        panic!("File '{}' does not exist!!!",output_file_name);
-    };
+    let expanded_output_string = &shellexpand::tilde(&output_file_name).to_string();
+    let expanded_output_path = Path::new(expanded_output_string);
+    if Path::new(&expanded_output_path).exists() {
+        colour::red_ln!("'{}' exists, overwritting...",output_file_name);
+        }
+        else {
+            colour::green_ln!("'{}' does not exist, creating...",output_file_name);
+        };
+    let opt_out_file = Some(File::create(expanded_output_path).unwrap());
+        
     // colour::green_ln!("Output file = '{}'",output_file_name);
 
     let out_file = opt_out_file.unwrap();
-
-    let file_list = get_data_filenames(&data_directory).unwrap();
-    // let output_file = Path::new(&output_file_name);
-    parse_data(&file_list[0], &out_file);
     
-    for file_path in file_list {
-        colour::blue_ln!("{:?}",file_path.to_str());
-        let f = File::open(file_path);
-        let metadata = f.unwrap().metadata();
-        colour::yellow_ln!("Size = {}",metadata.unwrap().len());
+    match opt_data_path {
+        Some(data_path) => {
+            let file_list = get_data_filenames(data_path).unwrap();
+            // let output_file = Path::new(&output_file_name);
+            parse_data(&file_list, &out_file);
+        },
+        None => {exit(-1);}
     }
+    
 
     
 
