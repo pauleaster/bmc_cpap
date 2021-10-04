@@ -9,19 +9,13 @@ const PACKET_SIZE:usize = 256;
 const NUMBER_OF_CSV_LINES_TO_WRITE: usize = 1024;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-enum PacketFieldNames {
-    ReslexLow,
-    ReslexHigh,
-    IpapLow,
-    IpapHigh,
-    EpapLow,
-    EpapHigh,
-    TidalVolLow,
-    TidalVolHigh,
-    RepRateLow,
-    RepRateHigh,
-    YearLow,
-    YearHigh,
+enum Field {
+    Reslex,
+    Ipap,
+    Epap,
+    TidalVol,
+    RepRate,
+    Year,
     Month,
     Day,
     Hour,
@@ -29,7 +23,43 @@ enum PacketFieldNames {
     Second,
 }
 
-const PACKET_FIELD_NUMBER: usize = 17;
+
+
+fn init_vec_lookup() -> (Vec<Field>, Vec<usize>, Vec<usize>, Vec<String>) {
+
+    let name_vec:Vec<Field> = vec![Field::Reslex,
+    Field::Ipap,
+    Field::Epap,
+    Field::TidalVol,
+    Field::RepRate,
+    Field::Year,
+    Field:: Month,
+    Field::Day,
+    Field::Hour,
+    Field::Minute,
+    Field::Second];
+    let string_vec:Vec<String> = vec!["Reslex".to_string(),
+    "Ipap".to_string(),
+    "Epap".to_string(),
+    "TidalVol".to_string(),
+    "RepRate".to_string(),
+    "Year".to_string(),
+    "Month".to_string(),
+    "Day".to_string(),
+    "Hour".to_string(),
+    "Minute".to_string(),
+    "Second".to_string()];
+
+    let (hm_locn, hm_size) = initialise_table() ;
+    let num_bytes = 0;
+    let mut locn:Vec<usize> = vec![];
+    let mut size:Vec<usize> = vec![];
+    for field in name_vec.iter(){
+        locn.push(hm_locn[field]);
+        locn.push(hm_size[field]);
+    }
+    (name_vec, locn, size, string_vec)
+}
 
 struct Packet {
     data: Vec<u8>
@@ -42,85 +72,67 @@ struct Packet {
 // }
 
 
-fn initialise_table() -> HashMap<PacketFieldNames, usize> {
+fn initialise_table() -> (HashMap<Field, usize>, HashMap<Field, usize>) {
     
-    let mut map:  HashMap<PacketFieldNames, usize> = HashMap::new();
-    map.insert(PacketFieldNames::ReslexLow, 2);
-    map.insert(PacketFieldNames::ReslexHigh, 3);
-    map.insert(PacketFieldNames::IpapLow, 4);
-    map.insert(PacketFieldNames::IpapHigh, 5);
-    map.insert(PacketFieldNames::EpapLow, 6);
-    map.insert(PacketFieldNames::EpapHigh, 7);
-    map.insert(PacketFieldNames::TidalVolLow, 99*2);
-    map.insert(PacketFieldNames::TidalVolHigh, 99*2+1);
-    map.insert(PacketFieldNames::RepRateLow, 104*2);
-    map.insert(PacketFieldNames::RepRateHigh, 104*2+1);
-    map.insert(PacketFieldNames::YearLow, 256-8+0);
-    map.insert(PacketFieldNames::YearHigh, 256-8+1);
-    map.insert(PacketFieldNames::Month, 256-8+2);
-    map.insert(PacketFieldNames::Day, 256-8+3);
-    map.insert(PacketFieldNames::Hour, 256-8+4);
-    map.insert(PacketFieldNames::Minute, 256-8+5);
-    map.insert(PacketFieldNames::Second, 256-8+6);
-    map
-
-}
-
-fn initialise_array_lookup() -> [usize;PACKET_FIELD_NUMBER]{
-
-    let map = initialise_table();
-
-    let mut lookup = [0_usize;PACKET_FIELD_NUMBER];
-    lookup[0] = map[&PacketFieldNames::Day];
-    lookup[1] = map[&PacketFieldNames::Month];
-    lookup[2] = map[&PacketFieldNames::YearLow];
-    lookup[3] = map[&PacketFieldNames::YearHigh];
-    lookup[4] = map[&PacketFieldNames::Hour];
-    lookup[5] = map[&PacketFieldNames::Minute];
-    lookup[6] = map[&PacketFieldNames::Second];
-    lookup[7] = map[&PacketFieldNames::ReslexLow];
-    lookup[8] = map[&PacketFieldNames::ReslexHigh];
-    lookup[9] = map[&PacketFieldNames::IpapLow];
-    lookup[10] = map[&PacketFieldNames::IpapHigh];
-    lookup[11] = map[&PacketFieldNames::EpapLow];
-    lookup[12] = map[&PacketFieldNames::EpapHigh];
-    lookup[13] = map[&PacketFieldNames::TidalVolLow];
-    lookup[14] = map[&PacketFieldNames::TidalVolHigh];
-    lookup[15] = map[&PacketFieldNames::RepRateLow];
-    lookup[16] = map[&PacketFieldNames::RepRateHigh];
-    lookup    
-}
-
-fn wanted_data(packet: &[u8], lookup_table: &[usize;12]) -> [u8;12] {
-    let mut result = [0_u8;12];
-    for (idx, &data_idx) in lookup_table.iter().enumerate() {
-        result[idx] = packet[data_idx];
-    }
-    result
-}
-
-fn calc_packet_csv_bytes(packet_data: [u16;12]) -> Vec <u16> {
+    let mut map:  HashMap<Field, usize> = HashMap::new();
+    map.insert(Field::Reslex, 1*2);
+    map.insert(Field::Ipap, 2*2);
+    map.insert(Field::Epap, 3*2);
+    map.insert(Field::TidalVol, 99*2);
+    map.insert(Field::RepRate, 104*2);
+    map.insert(Field::Year, 256-8);
+    map.insert(Field::Month, 256-8+2);
+    map.insert(Field::Day, 256-8+3);
+    map.insert(Field::Hour, 256-8+4);
+    map.insert(Field::Minute, 256-8+5);
+    map.insert(Field::Second, 256-8+6);
     
+    let mut size:  HashMap<Field, usize> = HashMap::new();
+    size.insert(Field::Reslex, 2);
+    size.insert(Field::Ipap, 2);
+    size.insert(Field::Epap, 2);
+    size.insert(Field::TidalVol, 2);
+    size.insert(Field::RepRate, 2);
+    size.insert(Field::Year, 2);
+    size.insert(Field::Month, 1);
+    size.insert(Field::Day, 1);
+    size.insert(Field::Hour, 1);
+    size.insert(Field::Minute, 1);
+    size.insert(Field::Second, 1);
+
+    (map,size)
+
+}
+
+fn wanted_csv_headers(headers:&Vec<String>) -> Vec<u8> {
+
     let mut csv_str: String = "".to_string();
-    let mut year_low: u32 =  0;
-    let mut year_high: u32 = 0;
-    for (idx, value) in packet_data.iter().enumerate() {
-        if idx==2 {
-            year_low = *value as u32;
-            continue;
-        } else if idx == 3 {
-            year_high = *value as u32;
-            let year_value = year_high * 256 + year_low;
-            csv_str.push_str(&year_value.to_string());
-            csv_str.push(',')
-        } else {
-        csv_str.push_str(&value.to_string());
+    for s in headers.iter() {
+        csv_str.push_str(s);
         csv_str.push(',');
-        }
     }
     csv_str.pop(); // remove the last ','
     csv_str.push('\n'); // add linefeed
     csv_str.as_bytes().to_vec()
+
+}
+
+
+fn wanted_csv_data(packet: &[u8], locn: &Vec<usize>, size:&Vec<usize>) -> Vec<u8> {
+    
+    let mut csv_str: String = "".to_string();
+    for (&loc, &s) in locn.iter().zip(size.iter()) {
+        let mut val:u16 = 0;
+        for i in 0..s {
+            val = (val << 8) | (packet[loc + i] as u16);
+        }
+        csv_str.push_str(&val.to_string());
+        csv_str.push(',')
+    }
+    csv_str.pop(); // remove the last ','
+    csv_str.push('\n'); // add linefeed
+    csv_str.as_bytes().to_vec()
+
 }
 
 
@@ -160,7 +172,7 @@ pub fn parse_data(file_name: &PathBuf, output_file_name: &File) {
     let mut reader = BufReader::with_capacity(PACKET_SIZE,file.unwrap());
     let mut writer = BufWriter::new(out_file);
     let mut total_bytes_read = 0;
-    let lookup_table = initialise_array_lookup();
+    // let lookup_table = initialise_array_lookup();
     let mut number_of_lines = 0;
     let mut number_of_written_lines = 0;
 
@@ -168,17 +180,21 @@ pub fn parse_data(file_name: &PathBuf, output_file_name: &File) {
 
     let mut output_csv_bytes : Vec<u8> = vec![];
     let mut csv_line_bytes : Vec<u8>;
-    let mut this_data = [0u8;12];
+    
+    let (params, locn, size, headers) = init_vec_lookup();
 
 
 
+    csv_line_bytes = wanted_csv_headers(&headers);
+    output_csv_bytes.append(& mut csv_line_bytes);
+    number_of_lines += 1;
     while  length > 0 {
         let buffer: &[u8] = reader.fill_buf().unwrap();
         length = buffer.len();
 
         if length == PACKET_SIZE {
-            this_data = wanted_data(buffer, &lookup_table);
-            csv_line_bytes = calc_packet_csv_bytes(this_data);
+            // wanted_csv_data(packet: &Vec<u8>, locn: &Vec<usize>, size:&Vec<usize>, total_bytes: usize) -> Vec<u8> 
+            csv_line_bytes = wanted_csv_data(buffer, &locn, &size);
             output_csv_bytes.append(& mut csv_line_bytes);
             number_of_lines += 1;
         }
