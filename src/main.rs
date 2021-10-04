@@ -1,4 +1,4 @@
-use std::{env, fs::File, path::Path, process::exit};
+use std::{env, fs::File, path::Path, process::exit, time::Instant};
 
 use bmc_cpap::{get_data_filenames, parse_data};
 
@@ -12,6 +12,8 @@ use bmc_cpap::{get_data_filenames, parse_data};
 
 
 fn main() {
+
+    let now = Instant::now();
     let args: Vec<String> = env::args().collect();
     let data_directory: String;
     let mut output_file_name: String= "./".to_string();
@@ -67,5 +69,6 @@ fn main() {
 
     
 
- 
+    let elapsed = now.elapsed().as_secs_f64();
+    colour::blue_ln!("Total elapsed time is {:0.3} seconds",elapsed);
 }

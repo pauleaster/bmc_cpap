@@ -28,28 +28,31 @@ enum Field {
 
 fn init_vec_lookup() -> ( Vec<usize>, Vec<usize>, Vec<String>, Vec<usize>) {
 
-    let name_vec:Vec<Field> = vec![Field::Reslex,
-    Field::Ipap,
-    Field::Epap,
-    Field::TidalVol,
-    Field::RepRate,
-    Field::Year,
-    Field:: Month,
-    Field::Day,
-    Field::Hour,
-    Field::Minute,
-    Field::Second];
-    let string_vec:Vec<String> = vec!["Reslex".to_string(),
-    "Ipap".to_string(),
-    "Epap".to_string(),
-    "TidalVol".to_string(),
-    "RepRate".to_string(),
-    "Year".to_string(),
-    "Month".to_string(),
-    "Day".to_string(),
-    "Hour".to_string(),
-    "Minute".to_string(),
-    "Second".to_string()];
+    let name_vec:Vec<Field> = vec![    
+        Field::Year,
+        Field:: Month,
+        Field::Day,
+        Field::Hour,
+        Field::Minute,
+        Field::Second,
+        Field::Reslex,
+        Field::Ipap,
+        Field::Epap,
+        Field::TidalVol,
+        Field::RepRate,
+];
+    let string_vec:Vec<String> = vec![
+        "Year".to_string(),
+        "Month".to_string(),
+        "Day".to_string(),
+        "Hour".to_string(),
+        "Minute".to_string(),
+        "Second".to_string(),
+        "Reslex".to_string(),
+        "Ipap".to_string(),
+        "Epap".to_string(),
+        "TidalVol".to_string(),
+        "RepRate".to_string(),];
 
     let ymdhms_headers= vec!["Year".to_string(),"Month".to_string(),"Day".to_string(),
                                         "Hour".to_string(),"Minute".to_string(),"Second".to_string()];
@@ -152,7 +155,7 @@ fn wanted_csv_data(packet: &[u8], locn: &Vec<usize>, size:&Vec<usize>, ymdhms_lo
     csv_str.pop(); // remove the last ','
     csv_str.push('\n'); // add linefeed
     let num_days = NaiveDate::from_ymd(ymdhms_values[0],ymdhms_values[1] as u32,ymdhms_values[2] as u32).num_days_from_ce();
-    let ordinal_seconds = num_days * 86_400 + ymdhms_values[3] * 3_600 + ymdhms_values[4] * 60 + ymdhms_values[5];
+    let ordinal_seconds = num_days as u64 * 86_400 + ymdhms_values[3] as u64 * 3_600 + ymdhms_values[4] as u64*  60 + ymdhms_values[5] as u64;
     let mut prefix = ordinal_seconds.to_string();
     prefix.push(',');
     prefix.push_str(&csv_str);
@@ -246,6 +249,18 @@ pub fn parse_data(file_names: &Vec<PathBuf>, output_file_name: &File) {
 
             }
         }
+        match writer.write_all(&output_csv_bytes) {
+            Ok(()) => {
+                output_csv_bytes = vec![];
+                number_of_written_lines += number_of_lines;
+                number_of_lines = 0;
+                // colour::green_ln!("Bytes read: {}, Lines written: {}", total_bytes_read, number_of_written_lines);
+            },
+            Err(e) => {
+                panic!("{}",&e);
+            },
+        }
+        println!("Number of unwritten lines = {}",number_of_lines);
     }
     colour::magenta_ln!("Number of bytes read = {}",total_bytes_read);
     colour::yellow_ln!("Number of lines written = {}",number_of_written_lines);
