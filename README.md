@@ -3,11 +3,11 @@
 This is a rust port from modified python code https://github.com/pauleaster/BMC_RESmart_Clone.
 The original python code was cloned from https://github.com/headrotor/BMC_RESmart.
 
-## results:
+## Results:
 Both the python and rust code read the binary files ~123MB (on disk) and writes a csv file of ~27MB.
 The python code takes ~30 sec and the rust code takes ~1.5 sec.
 
-## The Following is the readme from the original python repo
+## The following is the readme from the original python repo
 
 Decode data files from BMC Medical RESMart GII systems.
 
