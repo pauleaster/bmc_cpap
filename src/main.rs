@@ -60,5 +60,6 @@ fn main() {
     
 
     let elapsed = now.elapsed().as_secs_f64();
-    colour::blue_ln!("Total elapsed time is {:0.3} seconds",elapsed);
+    // colour::blue_ln!("Total elapsed time is {:0.3} seconds",elapsed);
+    colour::dark_blue!("Total elapsed time is {:0.3} seconds",elapsed);
 }
